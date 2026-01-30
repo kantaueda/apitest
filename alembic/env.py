@@ -11,6 +11,7 @@ from alembic import context
 config = context.config
 
 import os
+from sqlalchemy import text
 
 if os.getenv("DATABASE_URL"):
     config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
@@ -56,27 +57,38 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
-
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
-
     """
+
+    url = os.getenv("DATABASE_URL")
+    if url:
+        config.set_main_option("sqlalchemy.url", url)
+
+    print("ALEMBIC sqlalchemy.url =", config.get_main_option("sqlalchemy.url"))
+
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
+        row = connection.execute(
+            text("SELECT current_database(), current_user, inet_server_addr(), inet_server_port()")
+        ).fetchone()
+        print("ALEMBIC connected to =", row)
+
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 
 if context.is_offline_mode():
