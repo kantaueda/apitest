@@ -1,30 +1,25 @@
 import os
+import sys
+import subprocess
+
 import pytest
 from sqlalchemy import create_engine, text
 
+
 @pytest.fixture(scope="session", autouse=True)
-def _recreate_users_table():
+def _reset_db_and_migrate():
     engine = create_engine(os.environ["DATABASE_URL"])
 
+    # DBを毎回“空”にする（列ズレを完全に消す）
     with engine.begin() as conn:
-        # 既存の users を必ず消す（列ズレを強制リセット）
-        conn.execute(text("DROP TABLE IF EXISTS users CASCADE"))
+        conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
 
-        # テストが期待している形で作る（id + name）
-        conn.execute(text("""
-            CREATE TABLE users (
-              id   SERIAL PRIMARY KEY,
-              name VARCHAR NOT NULL
-            )
-        """))
-
-        # 確認ログ（Actionsで見える）
-        cols = conn.execute(text("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'users'
-            ORDER BY ordinal_position
-        """)).fetchall()
-        print("DEBUG users columns:", [c[0] for c in cols])
+    # Alembicを適用（これがスキーマの正）
+    subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        check=True,
+        env=os.environ,
+    )
 
     yield
