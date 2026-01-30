@@ -2,19 +2,23 @@ import os
 import pytest
 from sqlalchemy import create_engine, text
 
-from app.models import User  # users の定義元
-
 @pytest.fixture(scope="session", autouse=True)
 def _recreate_users_table():
     engine = create_engine(os.environ["DATABASE_URL"])
 
     with engine.begin() as conn:
-        # 既存のズレた users を必ず消す
+        # 既存の users を必ず消す（列ズレを強制リセット）
         conn.execute(text("DROP TABLE IF EXISTS users CASCADE"))
-        # モデル定義どおりに作り直す（name列を含む想定）
-        User.__table__.create(bind=conn)
 
-        # デバッグ：実際の列をログに出す（Actionsで確認できる）
+        # テストが期待している形で作る（id + name）
+        conn.execute(text("""
+            CREATE TABLE users (
+              id   SERIAL PRIMARY KEY,
+              name VARCHAR NOT NULL
+            )
+        """))
+
+        # 確認ログ（Actionsで見える）
         cols = conn.execute(text("""
             SELECT column_name
             FROM information_schema.columns
