@@ -83,12 +83,26 @@ def run_migrations_online() -> None:
         print("ALEMBIC connected to =", row)
 
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
         )
 
         with context.begin_transaction():
             context.run_migrations()
 
+        # --- AFTER MIGRATIONS DEBUG ---
+        after_u = connection.execute(text("SELECT to_regclass('public.users')")).scalar()
+        after_all = connection.execute(text("""
+            SELECT table_schema, table_name
+            FROM information_schema.tables
+            WHERE table_schema NOT IN ('pg_catalog','information_schema')
+              AND table_name IN ('users', 'alembic_version')
+            ORDER BY table_schema, table_name
+        """)).fetchall()
+       
+        print("ALEMBIC after public.users =", after_u)
+        print("ALEMBIC tables =", after_all)
+        
 
 
 if context.is_offline_mode():
