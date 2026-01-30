@@ -2,7 +2,7 @@ import os
 import pytest
 from sqlalchemy import create_engine
 
-from app.db.base import Base  # ←ここは後で直す可能性あり
+from app.db import Base  # ←ここは後で直す可能性あり
 
 @pytest.fixture(scope="session", autouse=True)
 def _create_tables():
